@@ -1,8 +1,19 @@
-import { kv } from '@vercel/kv'
+import { Redis } from '@upstash/redis'
 import { Booking, BookingStatus } from './data'
-
+ 
+const url =
+  process.env.KV_REST_API_URL ||
+  process.env.UPSTASH_REDIS_REST_URL ||
+  ''
+const token =
+  process.env.KV_REST_API_TOKEN ||
+  process.env.UPSTASH_REDIS_REST_TOKEN ||
+  ''
+ 
+const kv = new Redis({ url, token })
+ 
 const KEY = 'bookings'
-
+ 
 const SEED: Booking[] = [
   { id: 'b1', clientName: 'Сабина Алиева', clientPhone: '+7 701 234 56 78', service: 'Маникюр + гель', master: 'Алия', date: '2025-06-30', time: '09:00', status: 'confirmed', reminderSent: true },
   { id: 'b2', clientName: 'Мадина Касымова', clientPhone: '+7 702 345 67 89', service: 'Гель-лак', master: 'Алия', date: '2025-06-30', time: '11:00', status: 'pending', reminderSent: false },
@@ -19,31 +30,31 @@ const SEED: Booking[] = [
   { id: 'b13', clientName: 'Нурия Касенова', clientPhone: '+7 701 666 77 88', service: 'Гель-лак', master: 'Алия', date: '2025-07-04', time: '13:00', status: 'confirmed', reminderSent: true },
   { id: 'b14', clientName: 'Рания Сатпаева', clientPhone: '+7 702 777 88 99', service: 'Дизайн ногтей', master: 'Дина', date: '2025-07-05', time: '15:00', status: 'pending', reminderSent: false },
 ]
-
+ 
 async function ensureSeeded() {
   const existing = await kv.get<Booking[]>(KEY)
   if (!existing || existing.length === 0) {
     await kv.set(KEY, SEED)
   }
 }
-
+ 
 export async function getAll(): Promise<Booking[]> {
   await ensureSeeded()
   return (await kv.get<Booking[]>(KEY)) ?? []
 }
-
+ 
 export async function getById(id: string): Promise<Booking | undefined> {
   const all = await getAll()
   return all.find(b => b.id === id)
 }
-
+ 
 export async function create(b: Booking): Promise<Booking> {
   const all = await getAll()
   all.push(b)
   await kv.set(KEY, all)
   return b
 }
-
+ 
 export async function updateStatus(id: string, status: BookingStatus): Promise<Booking | null> {
   const all = await getAll()
   const idx = all.findIndex(b => b.id === id)
@@ -52,7 +63,7 @@ export async function updateStatus(id: string, status: BookingStatus): Promise<B
   await kv.set(KEY, all)
   return all[idx]
 }
-
+ 
 export async function markReminderSent(id: string): Promise<Booking | null> {
   const all = await getAll()
   const idx = all.findIndex(b => b.id === id)
